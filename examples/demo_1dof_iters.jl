@@ -9,14 +9,16 @@ function fint(a)
     return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
 end
 
-function demo()
+function plotiterations(correctionstep,methodname)
+    markersize = 6
+
     fext = [1.0]
-    Δl = 5e-4
+    Δl = 2.5e-1
     u0 = [1e-6]
 
-    λ0=1e-2
+    λ0=.2
     iterations = 10
-    ftol = 1e-8
+    ftol = 1e-3
 
     qs = []
 
@@ -30,37 +32,42 @@ function demo()
         R[1:length(u)] = fint(u)-λ*fext
     end
 
-    result = nlsolve((R,a) -> evalfun!(R,a,λ0),u0,method=:newton)
-    u = result.zero
-    push!(qs,[u;λ0])
-
-    result = nlsolve((R,a) -> evalfun!(R,a,λ0+Δl),u,method=:newton)
-    u = result.zero
-    push!(qs,[u;λ0+Δl])
-
-    λ = last(qs)[2]
-    pl = scatter([last(qs)[1]],[last(qs)[2]],markershape=:auto,legend=:topleft,label="u₀")
+    qs = arclengthmethod(fint,fext,rikscorrection,1e-2,u0;adaptivestep=false)
+    pl = plot([u[1] for u in qs],[u[2] for u in qs],ls=:auto,legend = :outertopright,label="Solution",linealpha=0.5)
     ylabel!("load factor λ")
     xlabel!("displacement u")
 
-    # predictor
-    qs2 = copy(qs)
-    # qs2[2][1:end-1] = 5*qs2[2][1:end-1] 
-    qs2[2][end] = 1.1*qs2[2][end] 
+    stepselect = 50
 
-    Δq = diff(qs2)[1]
+    u = qs[stepselect][1:end-1]
+    λ = qs[stepselect][end]
+
+    function circleShape(h,k,r)
+        θ = LinRange(0,2pi,100)
+        h .+ r*sin.(θ), k .+ r*cos.(θ)
+    end
+
+    plot!(circleShape(u,λ,Δl),label="Δl",linealpha=0.5)
+
+    scatter!([u],[λ],markershape=:auto,label="u₀",markersize=markersize)
+    
+
+    us = [u]
+    λs = [λ]
+
+    # predictor
+    Δq = qs[stepselect] - qs[stepselect-1]
     Δq *= Δl/norm(Δq)
 
     Δu = Δq[1:end-1]
     Δλ = last(Δq)
 
+    push!(us,u+Δu)
+    push!(λs,λ+Δλ)
+    scatter!([u+Δu],[λ+Δλ],markershape=:auto, label="predictor",markeralpha=.4,markersize=markersize)
 
     iteration = 0
-    R = similar(u).+1
-
     Kt = ForwardDiff.jacobian(fint, u) 
-
-    scatter!([last(qs)[1]]+Δu,[last(qs)[2]+Δλ],markershape=:auto, label="iteration 0")
 
     converged = false
     while iteration < iterations-1
@@ -69,14 +76,24 @@ function demo()
         if converged; break; end
 
         iteration += 1
-        Δu,Δλ = mcrcorrection(Δu,Δλ,Kt,R,fext,Δl)
-        scatter!([last(qs)[1]]+Δu,[last(qs)[2]+Δλ],markershape=:auto,label="iteration " * string(iteration))
+        Δu,Δλ = correctionstep(Δu,Δλ,Kt,R,fext,Δl)
+
+        push!(us,u+Δu)
+        push!(λs,λ+Δλ)
+        scatter!([u+Δu],[λ+Δλ],markershape=:auto,label="iteration " * string(iteration),markeralpha=.4,markersize=markersize)
 
         
         if isnan(Δλ); converged = false; break; end
     end
 
+    xlims!(minimum(us)[1]-2.5e-2,maximum(us)[1]+5e-2)
+    ylims!(minimum(λs)-2.5e-2,maximum(λs)+5e-2)
+
+    title!(methodname * " iterations, ftol = " * string(ftol))
     return pl
 end
 
-demo()
+pl = plotiterations(rikscorrection,"Riks method")
+pl = plotiterations(crisfieldcorrection, "Crisfields method")
+pl = plotiterations(rammcorrection, "Ramms method")
+pl = plotiterations(mcrcorrection, "MCR method")
