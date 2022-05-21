@@ -18,7 +18,7 @@ function demo()
 
     # Riks arc length method
     println("Riks arc length method")
-    qs = arclengthmethod(fint,fext,rikscorrection,Δl,u0;verbose=verbose)
+    qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:riks)
     println("Riks method done")
     pl = plot([u[1] for u in qs],[u[2] for u in qs],ls=:auto,legend=:bottomright,label="Riks")
     ylabel!("load factor λ")
@@ -26,19 +26,19 @@ function demo()
 
     # Crisfields arc length method
     println("Crisfields arc length method")
-    qs = arclengthmethod(fint,fext,crisfieldcorrection,Δl,u0,verbose=verbose)
+    qs = arclengthmethod(fint,fext,Δl,u0,verbose=verbose,method=:crisfield)
     println("Crisfields method done")
     plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Crisfield")
 
     # Ramm arc length method
     println("Ramms arc length method")
-    qs = arclengthmethod(fint,fext,rammcorrection,Δl,u0;verbose=verbose)
+    qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:ramm)
     println("Ramms method done")
     plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Ramm")
 
     # MCR arc length method
     println("MCR arc length method")
-    qs = arclengthmethod(fint,fext,mcrcorrection,Δl,u0;verbose=verbose)
+    qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:mcr)
     println("MCR method done")
     plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="MCR")
 

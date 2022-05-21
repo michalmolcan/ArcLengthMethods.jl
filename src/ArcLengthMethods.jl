@@ -5,10 +5,23 @@ using NLsolve, LinearAlgebra, ForwardDiff
 export arclengthmethod
 export rikscorrection,crisfieldcorrection,rammcorrection,mcrcorrection
 
-function arclengthmethod(fint,fext,correctorstep,Δl,u0;
-    λ0=1e-2,ftol=1e-8,iterations=100,steps=1000,verbose=false,adaptivestep=true)
+function arclengthmethod(fint,fext,Δl,u0;
+    λ0=1e-2,ftol=1e-8,method=:crisfield,
+    iterations=100,steps=1000,
+    verbose=false,adaptivestep=true)
     
-    
+    if method == :riks
+        correctorstep = rikscorrection
+    elseif method == :crisfield
+        correctorstep = crisfieldcorrection
+    elseif method == :ramm
+        correctorstep = rammcorrection
+    elseif method == :mcr
+        correctorstep = mcrcorrection
+    else
+        error("Unknown method")
+    end
+
     ndof = length(u0)
     
     qs = []
@@ -35,8 +48,11 @@ function arclengthmethod(fint,fext,correctorstep,Δl,u0;
 
         Δu,Δλ = secantpredictor(last(qs,2),Δl)
 
-        Kt = ForwardDiff.jacobian(fint, u) 
-        # Kt = lu(ForwardDiff.jacobian(fint, u)) #todo nefunguje u rikse
+        if method == :riks
+            Kt = ForwardDiff.jacobian(fint, u + Δu) 
+        else
+            Kt = lu(ForwardDiff.jacobian(fint, u + Δu))
+        end
         
         iteration = 0
         R = similar(u).+1
@@ -83,7 +99,7 @@ end
 
 
 function updatearclength(Δl,iterations)
-    Δl *= 4/max(iterations,1)
+    Δl *= (4/max(iterations,1))
 end
 
 """
