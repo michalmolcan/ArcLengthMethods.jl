@@ -1,8 +1,8 @@
 using Plots, BenchmarkTools, Revise
 using NLsolve, LinearAlgebra, ForwardDiff
 
-includet("../src/ArcLengthMethod.jl")
-using .ArcLengthMethod
+includet("../src/ArcLengthMethods.jl")
+using .ArcLengthMethods
 
 function fint(a)
     θ₀ = pi/3

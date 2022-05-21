@@ -1,7 +1,7 @@
 using Plots, BenchmarkTools, Revise
 
-includet("../src/ArcLengthMethod.jl")
-using .ArcLengthMethod
+includet("../src/ArcLengthMethods.jl")
+using .ArcLengthMethods
 
 function fint(a)
     θ₀ = pi/3

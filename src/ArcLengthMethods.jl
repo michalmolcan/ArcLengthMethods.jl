@@ -1,4 +1,4 @@
-module ArcLengthMethod
+module ArcLengthMethods
 
 using NLsolve, LinearAlgebra, ForwardDiff
 

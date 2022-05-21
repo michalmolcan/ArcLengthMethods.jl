@@ -1,6 +1,6 @@
 # ArcLengthMethods.jl
 
-Methods avaiable:
+Methods available: 
 - Riks method
 - Crisfields method
 - Ramms method
