@@ -93,7 +93,12 @@ function plotiterations(correctionstep,methodname)
     return pl
 end
 
-pl = plotiterations(rikscorrection,"Riks method")
-pl = plotiterations(crisfieldcorrection, "Crisfields method")
-pl = plotiterations(rammcorrection, "Ramms method")
-pl = plotiterations(mcrcorrection, "MCR method")
+pl1 = plotiterations(rikscorrection,"Riks method")
+pl2 = plotiterations(crisfieldcorrection, "Crisfields method")
+pl3 = plotiterations(rammcorrection, "Ramms method")
+pl4 = plotiterations(mcrcorrection, "MCR method")
+
+savefig(pl1,"docs/files/riksmethoditerations.png")
+savefig(pl2,"docs/files/crisfieldsmethoditerations.png")
+savefig(pl3,"docs/files/rammsmethoditerations.png")
+savefig(pl4,"docs/files/mcrmethoditerations.png")
