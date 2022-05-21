@@ -1,9 +1,9 @@
 module ArcLengthMethods
 
-using NLsolve, LinearAlgebra, ForwardDiff
+using NLsolve, LinearAlgebra, ForwardDiff, BenchmarkTools
 
 export arclengthmethod
-export rikscorrection,crisfieldcorrection,rammcorrection,mcrcorrection
+export rikscorrection!,crisfieldcorrection!,rammcorrection!,mcrcorrection!
 
 function arclengthmethod(fint,fext,Δl,u0;
     λ0=1e-2,ftol=1e-8,method=:crisfield,
@@ -11,13 +11,13 @@ function arclengthmethod(fint,fext,Δl,u0;
     verbose=false,adaptivestep=true)
     
     if method == :riks
-        correctorstep = rikscorrection
+        correctorstep! = rikscorrection!
     elseif method == :crisfield
-        correctorstep = crisfieldcorrection
+        correctorstep! = crisfieldcorrection!
     elseif method == :ramm
-        correctorstep = rammcorrection
+        correctorstep! = rammcorrection!
     elseif method == :mcr
-        correctorstep = mcrcorrection
+        correctorstep! = mcrcorrection!
     else
         error("Unknown method")
     end
@@ -25,11 +25,20 @@ function arclengthmethod(fint,fext,Δl,u0;
     ndof = length(u0)
     
     qs = []
-
     R = similar(u0)
-    
+    λ = zeros(1)
+    Δq = zeros(ndof+1)
+    Δu = @view Δq[1:end-1]
+    Δλ = @view Δq[end]
+    bffr = (
+        Δur = similar(u0),
+        Δuf = similar(u0),
+        Δλbar = similar(Δλ),
+        α = zeros(1)
+    )
+
     function evalfun!(R,u,λ)
-        R[1:length(u)] = fint(u)-λ*fext
+        R[1:length(u)] = fint(u) - λ.*fext
     end
 
     result = nlsolve((R,a) -> evalfun!(R,a,λ0),u0,method=:newton)
@@ -43,10 +52,10 @@ function arclengthmethod(fint,fext,Δl,u0;
     step = 1
     while last(qs)[end] < 1
         
-        u = last(qs)[1:end-1]
-        λ = last(qs)[end]
+        u .= @view last(qs)[1:end-1]
+        λ .= @view last(qs)[end]
 
-        Δu,Δλ = secantpredictor(last(qs,2),Δl)
+        secantpredictor!(Δq,qs,Δl)
 
         if method == :riks
             Kt = ForwardDiff.jacobian(fint, u + Δu) 
@@ -64,9 +73,9 @@ function arclengthmethod(fint,fext,Δl,u0;
             if converged; break; end
 
             iteration += 1
-            Δu,Δλ = correctorstep(Δu,Δλ,Kt,R,fext,Δl)
+            correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr)
             
-            if isnan(Δλ); converged = false; break; end
+            if isnan(Δλ[1]); converged = false; break; end
         end
 
         if converged 
@@ -91,10 +100,9 @@ function arclengthmethod(fint,fext,Δl,u0;
     qs
 end
 
-function secantpredictor(qs,Δl)
-    Δq = diff(qs)[1]
-    Δq = Δl/norm(Δq)*Δq
-    return Δq[1:end-1],last(Δq)
+function secantpredictor!(Δq,qs,Δl)
+    @views Δq .= qs[end] - qs[end-1]
+    Δq .= Δl/norm(Δq)*Δq
 end
 
 
@@ -106,17 +114,17 @@ end
 # Riks corrector step
 [1] Ferreira2005
 """
-function rikscorrection(Δu,Δλ,Kt,R,fext,Δl)
+function rikscorrection!(Δu,Δλ,Kt,R,fext,Δl,bffr)
     φ = 1
 
     A = [Kt                 -fext;
-        transpose(2*Δu)     2*Δλ*φ^2*transpose(fext)*fext]
-    δq = -A\[R;transpose(Δu)*Δu + Δλ^2*φ^2*transpose(fext)*fext - Δl^2]
+        transpose(2*Δu)     2*Δλ.*φ^2*transpose(fext)*fext]
+    δq = -A\[R;transpose(Δu)*Δu + Δλ.^2.0.*φ^2*transpose(fext)*fext - Δl^2]
 
-    Δu = Δu + δq[1:end-1]
-    Δλ = Δλ + last(δq) 
+    Δu .= Δu + δq[1:end-1]
+    Δλ .= Δλ .+ last(δq) 
 
-    Δu,Δλ
+    nothing
 end
 
 
@@ -124,32 +132,32 @@ end
 # Crisfields corrector step
 [1] Ferreira2005
 """
-function crisfieldcorrection(Δu,Δλ,Kt,R,fext,Δl)
-    δū = -(Kt\R)
-    δut = Kt\fext
+function crisfieldcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf))
+    Δur .= -(Kt\R)
+    Δuf .= Kt\fext
 
     φ = 1
 
-    a = transpose(δut)*δut + φ^2*transpose(fext)*fext
-    b = 2*transpose(δut)*(Δu + δū) + 2*Δλ*φ^2*transpose(fext)*fext
-    c = transpose(Δu + δū)*(Δu + δū) - Δl^2 + Δλ^2*φ^2*transpose(fext)*fext
+    a = transpose(Δuf)*Δuf .+ φ^2*transpose(fext)*fext
+    b = 2*transpose(Δuf)*(Δu + Δur) .+ 2*Δλ.*φ^2*transpose(fext)*fext
+    c = transpose(Δu + Δur)*(Δu + Δur) .- Δl^2 .+ Δλ.^2.0.*φ^2.0*transpose(fext)*fext
 
-    D = b^2 - 4*a*c
+    D = b.^2 .- (4).*a*c
     @assert D >= 0 "Discriminant must not be negative!"
 
     δλ = (-b .+ [-1;1]*sqrt(D))/2/a
-    Δu1 = Δu + δū + δλ[1]*δut
-    Δu2 = Δu + δū + δλ[2]*δut
+    Δu1 = Δu + Δur + δλ[1]*Δuf
+    Δu2 = Δu + Δur + δλ[2]*Δuf
     
     if transpose(Δu1)*Δu/Δl^2 >= transpose(Δu2)*Δu/Δl^2
-        Δλ = Δλ + δλ[1]
-        Δu = Δu1
+        Δλ .= Δλ .+ δλ[1]
+        Δu .= Δu1
     else
-        Δλ = Δλ + δλ[2]
-        Δu = Δu2
+        Δλ .= Δλ .+ δλ[2]
+        Δu .= Δu2
     end
 
-    Δu,Δλ
+    nothing
 end
 
 """
@@ -160,37 +168,31 @@ Co takhle pouzit JFNK?
 https://book.sciml.ai/notes/09/
 znam smer ve kterém hledám derivaci...
 """
-function rammcorrection(Δu,Δλ,Kt,R,fext,Δl)
-    Δur = -(Kt\R)
-    Δuf = Kt\fext
+function rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar))
+    Δur .= -(Kt\R)
+    Δuf .= Kt\fext
 
-    Δλ2 = -(transpose(Δu)*Δur)/(transpose(Δu)*Δuf)
+    Δλbar .= -(transpose(Δu)*Δur)/(transpose(Δu)*Δuf)
     
-    Δu += Δur + Δλ2*Δuf
-    Δλ += Δλ2 
+    Δu .+= Δur .+ Δλbar.*Δuf
+    Δλ .+= Δλbar
 
-    Δu,Δλ
+    nothing
 end
 
 """
 # Modified Crisfield-Ramm corrector
 [1] Fafard1993
 """
-function mcrcorrection(Δu,Δλ,Kt,R,fext,Δl)
-    Δur = -(Kt\R)
-    Δuf = Kt\fext
-
-    Δλ2 = -(transpose(Δu)*Δur)/(transpose(Δu)*Δuf)
-    
-    Δu += Δur + Δλ2*Δuf
-    Δλ += Δλ2 
+function mcrcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar,α))
+    rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar))
 
     # correction to match the arc radius
-    α = sqrt(Δl^2)/(norm([Δu;Δλ]))
-    Δu *= α
-    Δλ *= α
+    α .= sqrt(Δl^2)/(norm([Δu;Δλ]))
+    Δu .*= α
+    Δλ .*= α
 
-    Δu,Δλ
+    nothing
 end
 
 end
