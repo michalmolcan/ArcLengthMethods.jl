@@ -24,23 +24,23 @@ function demo()
     ylabel!("load factor λ")
     xlabel!("displacement u₂")
 
-    # # Crisfields arc length method
-    # println("Crisfields arc length method")
-    # qs = arclengthmethod(fint,fext,Δl,u0,verbose=verbose,method=:crisfield)
-    # println("Crisfields method done")
-    # plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Crisfield")
+    # Crisfields arc length method
+    println("Crisfields arc length method")
+    qs = arclengthmethod(fint,fext,Δl,u0,verbose=verbose,method=:crisfield)
+    println("Crisfields method done")
+    plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Crisfield")
 
-    # # Ramm arc length method
-    # println("Ramms arc length method")
-    # qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:ramm)
-    # println("Ramms method done")
-    # plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Ramm")
+    # Ramm arc length method
+    println("Ramms arc length method")
+    qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:ramm)
+    println("Ramms method done")
+    plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Ramm")
 
-    # # MCR arc length method
-    # println("MCR arc length method")
-    # qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:mcr)
-    # println("MCR method done")
-    # plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="MCR")
+    # MCR arc length method
+    println("MCR arc length method")
+    qs = arclengthmethod(fint,fext,Δl,u0;verbose=verbose,method=:mcr)
+    println("MCR method done")
+    plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="MCR")
 
     return pl
 end

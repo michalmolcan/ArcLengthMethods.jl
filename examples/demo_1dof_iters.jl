@@ -9,7 +9,7 @@ function fint(a)
     return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
 end
 
-function plotiterations(correctionstep,methodname)
+function plotiterations(correctorstep!,methodname)
     markersize = 6
 
     fext = [1.0]
@@ -32,7 +32,8 @@ function plotiterations(correctionstep,methodname)
         R[1:length(u)] = fint(u)-λ*fext
     end
 
-    qs = arclengthmethod(fint,fext,rikscorrection,1e-2,u0;adaptivestep=false)
+    
+    qs = arclengthmethod(fint,fext,1e-2,u0;verbose=false,method=:riks,adaptivestep=false)
     pl = plot([u[1] for u in qs],[u[2] for u in qs],ls=:auto,legend = :outertopright,label="Solution",linealpha=0.5)
     ylabel!("load factor λ")
     xlabel!("displacement u")
@@ -59,31 +60,37 @@ function plotiterations(correctionstep,methodname)
     Δq = qs[stepselect] - qs[stepselect-1]
     Δq *= Δl/norm(Δq)
 
-    Δu = Δq[1:end-1]
-    Δλ = last(Δq)
+    Δu = @view Δq[1:end-1]
+    Δλ = @view Δq[end]
 
     push!(us,u+Δu)
-    push!(λs,λ+Δλ)
-    scatter!([u+Δu],[λ+Δλ],markershape=:auto, label="predictor",markeralpha=.4,markersize=markersize)
+    push!(λs,λ.+Δλ)
+    scatter!([u+Δu],[λ.+Δλ],markershape=:auto, label="predictor",markeralpha=.4,markersize=markersize)
 
     iteration = 0
+    bffr = (
+        Δur = similar(u0),
+        Δuf = similar(u0),
+        Δλbar = similar(Δλ),
+        α = zeros(1)
+    )
     Kt = ForwardDiff.jacobian(fint, u) 
 
     converged = false
     while iteration < iterations-1
-        evalfun!(R,u + Δu,λ + Δλ)
+        evalfun!(R,u + Δu,λ .+ Δλ)
         converged = (norm(R)/ndof < ftol)
         if converged; break; end
 
         iteration += 1
-        Δu,Δλ = correctionstep(Δu,Δλ,Kt,R,fext,Δl)
+        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr)
 
         push!(us,u+Δu)
-        push!(λs,λ+Δλ)
-        scatter!([u+Δu],[λ+Δλ],markershape=:auto,label="iteration " * string(iteration),markeralpha=.4,markersize=markersize)
+        push!(λs,λ.+Δλ)
+        scatter!([u+Δu],[λ.+Δλ],markershape=:auto,label="iteration " * string(iteration),markeralpha=.4,markersize=markersize)
 
         
-        if isnan(Δλ); converged = false; break; end
+        if isnan(first(Δλ)); converged = false; break; end
     end
 
     xlims!(minimum(us)[1]-2.5e-2,maximum(us)[1]+5e-2)
@@ -93,10 +100,10 @@ function plotiterations(correctionstep,methodname)
     return pl
 end
 
-pl1 = plotiterations(rikscorrection,"Riks method")
-pl2 = plotiterations(crisfieldcorrection, "Crisfields method")
-pl3 = plotiterations(rammcorrection, "Ramms method")
-pl4 = plotiterations(mcrcorrection, "MCR method")
+pl1 = plotiterations(rikscorrection!,"Riks method")
+pl2 = plotiterations(crisfieldcorrection!, "Crisfields method")
+pl3 = plotiterations(rammcorrection!, "Ramms method")
+pl4 = plotiterations(mcrcorrection!, "MCR method")
 
 savefig(pl1,"docs/files/riksmethoditerations.png")
 savefig(pl2,"docs/files/crisfieldsmethoditerations.png")
