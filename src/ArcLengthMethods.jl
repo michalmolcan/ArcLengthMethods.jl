@@ -6,7 +6,7 @@ export arclengthmethod
 export rikscorrection!,crisfieldcorrection!,rammcorrection!,mcrcorrection!
 
 function arclengthmethod(fint,fext,Δl,u0;
-    λ0=1e-2,ftol=1e-8,method=:crisfield,
+    λ0=1e-2,ftol=1e-8,method=:crisfield,cylindrical=true,
     iterations=100,steps=1000,
     verbose=false,adaptivestep=true)
     
@@ -73,7 +73,7 @@ function arclengthmethod(fint,fext,Δl,u0;
             if converged; break; end
 
             iteration += 1
-            correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr)
+            correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=cylindrical)
             
             if isnan(Δλ[1]); converged = false; break; end
         end
@@ -114,8 +114,13 @@ end
 # Riks corrector step
 [1] Ferreira2005
 """
-function rikscorrection!(Δu,Δλ,Kt,R,fext,Δl,bffr)
-    φ = 1
+function rikscorrection!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=false)
+    if cylindrical
+        φ = 0
+    else
+        φ = 1
+    end
+    
 
     A = [Kt                 -fext;
         transpose(2*Δu)     2*Δλ.*φ^2*transpose(fext)*fext]
@@ -132,11 +137,15 @@ end
 # Crisfields corrector step
 [1] Ferreira2005
 """
-function crisfieldcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf))
+function crisfieldcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf);cylindrical=false)
     Δur .= -(Kt\R)
     Δuf .= Kt\fext
 
-    φ = 1
+    if cylindrical
+        φ = 0
+    else
+        φ = 1
+    end
 
     a = transpose(Δuf)*Δuf .+ φ^2*transpose(fext)*fext
     b = 2*transpose(Δuf)*(Δu + Δur) .+ 2*Δλ.*φ^2*transpose(fext)*fext
@@ -163,12 +172,8 @@ end
 """
 # Ramm corrector step
 [1] Fafard1993
-
-Co takhle pouzit JFNK?
-https://book.sciml.ai/notes/09/
-znam smer ve kterém hledám derivaci...
 """
-function rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar))
+function rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar);cylindrical=false)
     Δur .= -(Kt\R)
     Δuf .= Kt\fext
 
@@ -184,11 +189,16 @@ end
 # Modified Crisfield-Ramm corrector
 [1] Fafard1993
 """
-function mcrcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar,α))
-    rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar))
+function mcrcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar,α);cylindrical=false)
+    rammcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf,Δλbar);cylindrical=false)
 
     # correction to match the arc radius
-    α .= sqrt(Δl^2)/(norm([Δu;Δλ]))
+    if cylindrical
+        α .= sqrt(Δl^2)/(norm(Δu))
+    else
+        α .= sqrt(Δl^2)/(norm([Δu;Δλ]))
+    end
+    
     Δu .*= α
     Δλ .*= α
 

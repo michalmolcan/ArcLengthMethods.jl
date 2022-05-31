@@ -42,21 +42,27 @@ function demo1()
     ylabel!("load factor λ")
     xlabel!("displacement u₂")
 
+    opts = (
+        verbose=true,
+        adaptivestep=false,
+        cylindrical=false
+    )
+
     # Crisfields arc length method
     println("Crisfields arc length method")
-    qs = arclengthmethod(fint,fext,Δl,u0;method=:crisfield,verbose=true,adaptivestep=false)
+    qs = arclengthmethod(fint,fext,Δl,u0;method=:crisfield,opts...)
     println("Crisfields method done")
     plot!([u[2] for u in qs],[u[3] for u in qs],ls=:auto,label="Crisfield")
 
     # Ramm arc length method
     println("Ramms arc length method")
-    qs = arclengthmethod(fint,fext,Δl,u0;method=:ramm,verbose=true,adaptivestep=false)
+    qs = arclengthmethod(fint,fext,Δl,u0;method=:ramm,opts...)
     println("Ramms method done")
     plot!([u[2] for u in qs],[u[3] for u in qs],ls=:auto,label="Ramm")
 
     # MCR arc length method
     println("MCR arc length method")
-    qs = arclengthmethod(fint,fext,Δl,u0;method=:mcr,verbose=true,adaptivestep=false)
+    qs = arclengthmethod(fint,fext,Δl,u0;method=:mcr,opts...)
     println("MCR method done")
     plot!([u[2] for u in qs],[u[3] for u in qs],ls=:auto,label="MCR")
 
@@ -69,11 +75,18 @@ function demobenchmark()
     fext = [0, 1] 
     Δl = 5e-2
     u0 = [0,1e-6]
+
+    opts = (
+        verbose=false,
+        adaptivestep=false,
+        cylindrical=false
+    )
+
     # Benchmark 
-    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:riks,adaptivestep=false)
-    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:crisfield,adaptivestep=false)
-    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:ramm,adaptivestep=false)
-    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:mcr,adaptivestep=false)
+    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:riks,$opts...)
+    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:crisfield,$opts...)
+    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:ramm,$opts...)
+    @btime arclengthmethod($fint,$fext,$Δl,$u0;method=:mcr,$opts...)
 
     nothing
 end
