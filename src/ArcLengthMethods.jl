@@ -62,7 +62,7 @@ function arclengthmethod(fint,fext,Δl,u0;
         else
             Kt = lu(ForwardDiff.jacobian(fint, u + Δu))
         end
-        
+
         iteration = 0
         R = similar(u).+1
 
@@ -141,6 +141,8 @@ function crisfieldcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf);cylindrical=fa
     Δur .= -(Kt\R)
     Δuf .= Kt\fext
 
+    η = 1
+
     if cylindrical
         φ = 0
     else
@@ -155,8 +157,8 @@ function crisfieldcorrection!(Δu,Δλ,Kt,R,fext,Δl,(;Δur,Δuf);cylindrical=fa
     @assert D >= 0 "Discriminant must not be negative!"
 
     δλ = (-b .+ [-1;1]*sqrt(D))/2/a
-    Δu1 = Δu + Δur + δλ[1]*Δuf
-    Δu2 = Δu + Δur + δλ[2]*Δuf
+    Δu1 = Δu + η*Δur + δλ[1]*Δuf
+    Δu2 = Δu + η*Δur + δλ[2]*Δuf
     
     if transpose(Δu1)*Δu/Δl^2 >= transpose(Δu2)*Δu/Δl^2
         Δλ .= Δλ .+ δλ[1]
