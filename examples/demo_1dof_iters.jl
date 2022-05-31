@@ -9,16 +9,16 @@ function fint(a)
     return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
 end
 
-function plotiterations(correctorstep!,methodname)
+function plotiterations(correctorstep!, methodname; 
+    ftol=1e-3, cylindrical = false)
+
     markersize = 6
 
     fext = [1.0]
     Δl = 2.5e-1
     u0 = [1e-6]
 
-    λ0=.2
     iterations = 10
-    ftol = 1e-3
 
     qs = []
 
@@ -38,7 +38,7 @@ function plotiterations(correctorstep!,methodname)
     ylabel!("load factor λ")
     xlabel!("displacement u")
 
-    stepselect = 50
+    stepselect = 45
 
     u = qs[stepselect][1:end-1]
     λ = qs[stepselect][end]
@@ -83,7 +83,7 @@ function plotiterations(correctorstep!,methodname)
         if converged; break; end
 
         iteration += 1
-        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr)
+        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=cylindrical)
 
         push!(us,u+Δu)
         push!(λs,λ.+Δλ)
@@ -100,10 +100,15 @@ function plotiterations(correctorstep!,methodname)
     return pl
 end
 
-pl1 = plotiterations(rikscorrection!,"Riks method")
-pl2 = plotiterations(crisfieldcorrection!, "Crisfields method")
-pl3 = plotiterations(rammcorrection!, "Ramms method")
-pl4 = plotiterations(mcrcorrection!, "MCR method")
+opts = (
+    ftol = 1e-3,
+    cylindrical = false
+)
+
+pl1 = plotiterations(rikscorrection!,"Riks method";opts...)
+pl2 = plotiterations(crisfieldcorrection!, "Crisfields method";opts...)
+pl3 = plotiterations(rammcorrection!, "Ramms method";opts...)
+pl4 = plotiterations(mcrcorrection!, "MCR method";opts...)
 
 savefig(pl1,"docs/files/riksmethoditerations.png")
 savefig(pl2,"docs/files/crisfieldsmethoditerations.png")
