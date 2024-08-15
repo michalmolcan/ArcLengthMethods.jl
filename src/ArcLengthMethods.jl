@@ -1,6 +1,6 @@
 module ArcLengthMethods
 
-using NLsolve, LinearAlgebra, ForwardDiff, BenchmarkTools
+using NLsolve, LinearAlgebra, ForwardDiff
 
 export arclengthmethod
 export rikscorrection!,crisfieldcorrection!,rammcorrection!,mcrcorrection!
@@ -58,7 +58,7 @@ function arclengthmethod(fint,fext,Δl,u0;
         secantpredictor!(Δq,qs,Δl)
 
         if method == :riks
-            Kt = ForwardDiff.jacobian(fint, u + Δu) 
+            Kt = ForwardDiff.jacobian(q -> fint(q[1:end]) .- last(q).*fext, [u + Δu;λ+ Δλ]) 
         else
             Kt = lu(ForwardDiff.jacobian(fint, u + Δu))
         end
@@ -121,8 +121,8 @@ function rikscorrection!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=false)
         φ = 1
     end
     
-
-    A = [Kt                 -fext;
+    @show Kt,fext,transpose(2*Δu),2*Δλ.*φ^2*transpose(fext)*fext
+    A = [Kt                ;
         transpose(2*Δu)     2*Δλ.*φ^2*transpose(fext)*fext]
     δq = -A\[R;transpose(Δu)*Δu + Δλ.^2.0.*φ^2*transpose(fext)*fext - Δl^2]
 

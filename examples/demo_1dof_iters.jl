@@ -1,4 +1,4 @@
-using Plots, BenchmarkTools, Revise
+using Plots, Revise
 using NLsolve, LinearAlgebra, ForwardDiff
 
 includet("../src/ArcLengthMethods.jl")
@@ -9,8 +9,7 @@ function fint(a)
     return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
 end
 
-function plotiterations(correctorstep!, methodname; 
-    ftol=1e-3, cylindrical = false)
+function plotiterations(correctorstep!, methodname; ftol=1e-3, is_cylindrical = false)
 
     markersize = 6
 
@@ -83,7 +82,7 @@ function plotiterations(correctorstep!, methodname;
         if converged; break; end
 
         iteration += 1
-        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=cylindrical)
+        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=is_cylindrical)
 
         push!(us,u+Δu)
         push!(λs,λ.+Δλ)
