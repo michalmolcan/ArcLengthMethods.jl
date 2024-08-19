@@ -1,0 +1,52 @@
+using Plots, BenchmarkTools, Revise
+
+includet("../src/ArcLengthMethods.jl")
+using .ArcLengthMethods
+
+function fint(a)
+    θ₀ = pi/3
+    return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
+end
+
+
+
+fext = [1.0]
+Δl = 5e-2
+u0 = [1e-6]
+
+opts = (
+    verbose = true,
+    adaptivestep=false,
+    cylindrical = false,
+    save_iters = true
+)
+
+# Riks arc length method
+println("Riks arc length method")
+qs,iters_data_riks = arclengthmethod(fint,fext,Δl,u0;method=:riks,opts...)
+println("Riks method done")
+pl = plot([u[1] for u in qs],[u[2] for u in qs],ls=:auto,legend=:bottomright,label="Riks")
+ylabel!("load factor λ")
+xlabel!("displacement u₂")
+
+# Crisfields arc length method
+println("Crisfields arc length method")
+qs,iters_data_crisfield = arclengthmethod(fint,fext,Δl,u0;method=:crisfield,opts...)
+println("Crisfields method done")
+plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Crisfield")
+
+# Ramm arc length method
+println("Ramms arc length method")
+qs,iters_data_ramm = arclengthmethod(fint,fext,Δl,u0;method=:ramm,opts...)
+println("Ramms method done")
+plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="Ramm")
+
+# MCR arc length method
+println("MCR arc length method")
+qs,iters_data_mcr = arclengthmethod(fint,fext,Δl,u0;method=:mcr,opts...)
+println("MCR method done")
+plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="MCR")
+
+
+iters_data_riks
+iters_data_crisfield

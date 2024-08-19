@@ -7,8 +7,8 @@ export rikscorrection!,crisfieldcorrection!,rammcorrection!,mcrcorrection!
 
 function arclengthmethod(fint,fext,Δl,u0;
     λ0=1e-2,ftol=1e-8,method=:crisfield,cylindrical=true,
-    iterations=100,steps=1000,
-    verbose=false,adaptivestep=true)
+    max_iters=100,steps=1000,
+    verbose=false,adaptivestep=true,save_iters = false)
     
     if method == :riks
         correctorstep! = rikscorrection!
@@ -22,9 +22,13 @@ function arclengthmethod(fint,fext,Δl,u0;
         error("Unknown method")
     end
 
+    if save_iters
+        data = []
+    end
+
     ndof = length(u0)
     
-    qs = []
+    qs = Vector{Float64}[]
     R = similar(u0)
     λ = zeros(1)
     Δq = zeros(ndof+1)
@@ -44,11 +48,17 @@ function arclengthmethod(fint,fext,Δl,u0;
     result = nlsolve((R,a) -> evalfun!(R,a,λ0),u0,method=:newton)
     u = result.zero
     push!(qs,[u;λ0])
+    if save_iters
+        push!(data,(1,copy(u0),[copy(λ0)],u-u0,0,0,[0]))
+    end
 
     result = nlsolve((R,a) -> evalfun!(R,a,λ0+Δl),u,method=:newton)
-    u = result.zero
-    push!(qs,[u;λ0+Δl])
-       
+    u2 = result.zero
+    push!(qs,[u2;λ0+Δl])
+    if save_iters
+        push!(data,(1,copy(u),[copy(λ0+Δl)],u2-u,0,0,[0]))
+    end
+
     step = 1
     while last(qs)[end] < 1
         
@@ -67,13 +77,17 @@ function arclengthmethod(fint,fext,Δl,u0;
         R = similar(u).+1
 
         converged = false
-        while iteration < iterations-1
+        while iteration < max_iters-1 
             evalfun!(R,u + Δu,λ + Δλ)
+            if save_iters
+                push!(data,(iteration+1,copy(u),copy(λ),copy(Δu),copy(Δλ),copy(Δl),copy(R)))
+            end
+
             converged = (norm(R)/ndof < ftol)
             if converged; break; end
 
             iteration += 1
-            correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=cylindrical)
+            correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical)
             
             if isnan(Δλ[1]); converged = false; break; end
         end
@@ -97,7 +111,11 @@ function arclengthmethod(fint,fext,Δl,u0;
         if step > steps; break; end
     end
 
-    qs
+    if save_iters
+        return qs,data
+    else
+        return qs
+    end
 end
 
 function secantpredictor!(Δq,qs,Δl)
@@ -121,13 +139,12 @@ function rikscorrection!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=false)
         φ = 1
     end
     
-    @show Kt,fext,transpose(2*Δu),2*Δλ.*φ^2*transpose(fext)*fext
     A = [Kt                ;
         transpose(2*Δu)     2*Δλ.*φ^2*transpose(fext)*fext]
     δq = -A\[R;transpose(Δu)*Δu + Δλ.^2.0.*φ^2*transpose(fext)*fext - Δl^2]
 
-    Δu .= Δu + δq[1:end-1]
-    Δλ .= Δλ .+ last(δq) 
+    @views Δu .= Δu + δq[1:end-1]
+    @views Δλ .= Δλ .+ δq[end]
 
     nothing
 end

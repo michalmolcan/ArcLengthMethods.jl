@@ -45,7 +45,7 @@ function demo()
     qs = arclengthmethod(fint,fext,Δl,u0;method=:mcr,opts...)
     println("MCR method done")
     plot!([u[1] for u in qs],[u[2] for u in qs],ls=:auto,label="MCR")
-
+    
     return pl
 end
 

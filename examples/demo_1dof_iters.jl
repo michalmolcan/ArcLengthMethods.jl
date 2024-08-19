@@ -9,7 +9,7 @@ function fint(a)
     return [(1/sqrt(1-2*a[1]*sin(θ₀) + a[1]^2) -1)*(sin(θ₀) - a[1])]
 end
 
-function plotiterations(correctorstep!, methodname; ftol=1e-3, is_cylindrical = false)
+function plotiterations(correctorstep!, methodname; ftol=1e-3, cylindrical = false)
 
     markersize = 6
 
@@ -31,8 +31,13 @@ function plotiterations(correctorstep!, methodname; ftol=1e-3, is_cylindrical = 
         R[1:length(u)] = fint(u)-λ*fext
     end
 
-    
-    qs = arclengthmethod(fint,fext,1e-2,u0;verbose=false,method=:riks,adaptivestep=false)
+    opts = (;
+        verbose = false,
+        adaptivestep=false,
+        cylindrical = false
+    )
+
+    qs = arclengthmethod(fint,fext,1e-2,u0;opts...)
     pl = plot([u[1] for u in qs],[u[2] for u in qs],ls=:auto,legend = :outertopright,label="Solution",linealpha=0.5)
     ylabel!("load factor λ")
     xlabel!("displacement u")
@@ -73,7 +78,12 @@ function plotiterations(correctorstep!, methodname; ftol=1e-3, is_cylindrical = 
         Δλbar = similar(Δλ),
         α = zeros(1)
     )
-    Kt = ForwardDiff.jacobian(fint, u) 
+    
+    if correctorstep! == rikscorrection!
+        Kt = ForwardDiff.jacobian(q -> fint(q[1:end]) .- last(q).*fext, [u;λ]) 
+    else
+        Kt = lu(ForwardDiff.jacobian(fint, u))
+    end
 
     converged = false
     while iteration < iterations-1
@@ -82,7 +92,7 @@ function plotiterations(correctorstep!, methodname; ftol=1e-3, is_cylindrical = 
         if converged; break; end
 
         iteration += 1
-        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical=is_cylindrical)
+        correctorstep!(Δu,Δλ,Kt,R,fext,Δl,bffr;cylindrical)
 
         push!(us,u+Δu)
         push!(λs,λ.+Δλ)
@@ -108,6 +118,8 @@ pl1 = plotiterations(rikscorrection!,"Riks method";opts...)
 pl2 = plotiterations(crisfieldcorrection!, "Crisfields method";opts...)
 pl3 = plotiterations(rammcorrection!, "Ramms method";opts...)
 pl4 = plotiterations(mcrcorrection!, "MCR method";opts...)
+
+pl1
 
 savefig(pl1,"docs/files/riksmethoditerations.png")
 savefig(pl2,"docs/files/crisfieldsmethoditerations.png")
